@@ -23,6 +23,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#ifdef CONFIG_FB
+#include <linux/lcd_notify.h>
+#elif defined CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
@@ -82,9 +85,11 @@ struct msm_mpdec_cpudata_t {
 };
 static DEFINE_PER_CPU(struct msm_mpdec_cpudata_t, msm_mpdec_cpudata);
 
+static struct notifier_block msm_mpdec_lcd_notif;
 static struct delayed_work msm_mpdec_work;
 static struct workqueue_struct *msm_mpdec_workq;
 static DEFINE_MUTEX(mpdec_msm_cpu_lock);
+static DEFINE_MUTEX(mpdec_msm_susres_lock);
 #ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
 static struct workqueue_struct *mpdec_input_wq;
 static DEFINE_PER_CPU(struct work_struct, mpdec_input_work);
@@ -548,7 +553,7 @@ static struct input_handler mpdec_input_handler = {
 #endif
 
 static void msm_mpdec_early_suspend(struct early_suspend *h) {
-    int cpu = nr_cpu_ids;
+   int cpu = nr_cpu_ids;
 #ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
     is_screen_on = false;
 #endif
@@ -573,12 +578,16 @@ static void msm_mpdec_early_suspend(struct early_suspend *h) {
 
     pr_info(MPDEC_TAG"Screen -> off. Deactivated mpdecision.\n");
 }
+static DECLARE_WORK(msm_mpdec_suspend_work, msm_mpdec_suspend);
 
 static void msm_mpdec_late_resume(struct early_suspend *h) {
     int cpu = nr_cpu_ids;
 #ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
     is_screen_on = true;
 #endif
+
+    if (!per_cpu(msm_mpdec_cpudata, 0).device_suspended)
+        return;
 
     for_each_possible_cpu(cpu)
         per_cpu(msm_mpdec_cpudata, cpu).device_suspended = false;
@@ -587,7 +596,6 @@ static void msm_mpdec_late_resume(struct early_suspend *h) {
         /* wake up main work thread */
         was_paused = true;
         queue_delayed_work(msm_mpdec_workq, &msm_mpdec_work, 0);
-
         /* restore min/max cpus limits */
         for (cpu=1; cpu<CONFIG_NR_CPUS; cpu++) {
             if (cpu < msm_mpdec_tuners_ins.min_cpus) {
@@ -598,12 +606,47 @@ static void msm_mpdec_late_resume(struct early_suspend *h) {
                     mpdec_cpu_down(cpu);
             }
         }
-
         pr_info(MPDEC_TAG"Screen -> on. Activated mpdecision. | Mask=[%d%d%d%d]\n",
                 cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
     } else {
         pr_info(MPDEC_TAG"Screen -> on\n");
     }
+}
+static DECLARE_WORK(msm_mpdec_resume_work, msm_mpdec_resume);
+
+#ifdef CONFIG_FB
+static int msm_mpdec_lcd_notifier_callback(struct notifier_block *this,
+				unsigned long event, void *data) {
+	pr_debug("%s: event = %lu\n", __func__, event);
+
+	switch (event) {
+	case LCD_EVENT_OFF_START:
+		mutex_lock(&mpdec_msm_susres_lock);
+		schedule_work(&msm_mpdec_suspend_work);
+		break;
+	case LCD_EVENT_ON_START:
+		mutex_lock(&mpdec_msm_susres_lock);
+		schedule_work(&msm_mpdec_resume_work);
+		break;
+	case LCD_EVENT_OFF_END:
+		mutex_unlock(&mpdec_msm_susres_lock);
+		break;
+	case LCD_EVENT_ON_END:
+		mutex_unlock(&mpdec_msm_susres_lock);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+#elif defined CONFIG_HAS_EARLYSUSPEND
+static void msm_mpdec_early_suspend(struct early_suspend *h) {
+       msm_mpdec_suspend();
+}
+
+static void msm_mpdec_late_resume(struct early_suspend *h) {
+       msm_mpdec_resume();
 }
 
 static struct early_suspend msm_mpdec_early_suspend_handler = {
@@ -1169,11 +1212,24 @@ static int __init msm_mpdec_init(void) {
 
     pr_info(MPDEC_TAG"%s init complete.", __func__);
 
+
+#ifdef CONFIG_FB
+	msm_mpdec_lcd_notif.notifier_call = msm_mpdec_lcd_notifier_callback;
+	if (lcd_register_client(&msm_mpdec_lcd_notif) != 0) {
+		pr_err("%s: Failed to register lcd callback\n", __func__);
+		err = -EINVAL;
+		lcd_unregister_client(&msm_mpdec_lcd_notif);
+	}
+#elif defined CONFIG_HAS_EARLYSUSPEND
+	register_early_suspend(&msm_mpdec_early_suspend_handler);
+#endif
+
     return err;
 }
 late_initcall(msm_mpdec_init);
 
 void msm_mpdec_exit(void) {
+    lcd_unregister_client(&msm_mpdec_lcd_notif);
 #ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
     input_unregister_handler(&mpdec_input_handler);
     destroy_workqueue(msm_mpdec_revib_workq);
