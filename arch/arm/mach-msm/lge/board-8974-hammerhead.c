@@ -146,6 +146,25 @@ void __init lge_add_lcd_kcal_devices(void)
 	pr_info (" LCD_KCAL_DEBUG : %s \n", __func__);
 	platform_device_register(&kcal_platrom_device);
 };
+
+#ifdef CONFIG_BRICKED_THERMAL
+static struct msm_thermal_data msm_thermal_pdata = {
+	.sensor_id = 0,
+	.poll_ms = 400,
+	.shutdown_temp = 88,
+
+	.allowed_max_high = 84,
+	.allowed_max_low = 79,
+	.allowed_max_freq = 300000,
+
+	.allowed_mid_high = 81,
+	.allowed_mid_low = 76,
+	.allowed_mid_freq = 960000,
+
+	.allowed_low_high = 79,
+	.allowed_low_low = 73,
+	.allowed_low_freq = 1728000,
+};
 #endif
 
 /*
