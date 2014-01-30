@@ -17,9 +17,13 @@ obj-$(CONFIG_IOSCHED_DEADLINE)	+= deadline-iosched.o
 obj-$(CONFIG_IOSCHED_ROW)	+= row-iosched.o
 obj-$(CONFIG_IOSCHED_CFQ)	+= cfq-iosched.o
 <<<<<<< HEAD
+<<<<<<< HEAD
 obj-$(CONFIG_IOSCHED_FIOPS)	+= fiops-iosched.o
 obj-$(CONFIG_IOSCHED_BFQ)	+= bfq-iosched.o
 =======
+=======
+obj-$(CONFIG_IOSCHED_BFQ)	+= bfq-iosched.o
+>>>>>>> adea706... BFQ-V7
 obj-$(CONFIG_IOSCHED_TEST)	+= test-iosched.o
 obj-$(CONFIG_IOSCHED_FIOPS)     += fiops-iosched.o
 obj-$(CONFIG_IOSCHED_SIO)       += sio-iosched.o
