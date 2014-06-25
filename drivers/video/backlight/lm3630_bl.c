@@ -71,10 +71,10 @@
 
 #define BL_OFF 0x00
 
-static bool backlight_dimmer = false;
+static bool backlight_dimmer = true;
 module_param(backlight_dimmer, bool, 0664);
 
-static int min_brightness = 5;
+static int min_brightness = 4;
 module_param(min_brightness, int, 0664);
 
 enum {
