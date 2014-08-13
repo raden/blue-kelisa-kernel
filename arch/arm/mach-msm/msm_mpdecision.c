@@ -210,7 +210,7 @@ static int mp_decision(void) {
 	}
 	total_time += this_time;
 
-	rq_depth = get_rq_info();
+	//rq_depth = get_rq_info();
 	nr_cpu_online = num_online_cpus();
 
 	if (nr_cpu_online) {
