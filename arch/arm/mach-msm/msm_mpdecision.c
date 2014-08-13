@@ -28,6 +28,7 @@
 #include <linux/lcd_notify.h>
 #elif defined CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/workqueue.h>
@@ -44,7 +45,7 @@
 #endif
 #include "acpuclock.h"
 
-#define DEBUG 1
+#define DEBUG 0
 
 DEFINE_PER_CPU(struct msm_mpdec_cpudata_t, msm_mpdec_cpudata);
 EXPORT_PER_CPU_SYMBOL_GPL(msm_mpdec_cpudata);
@@ -510,8 +511,8 @@ static struct input_handler mpdec_input_handler = {
 };
 #endif
 
-static void msm_mpdec_early_suspend(struct early_suspend *h) {
-   int cpu = nr_cpu_ids;
+static void msm_mpdec_suspend(struct work_struct * msm_mpdec_suspend_work) {
+    int cpu = nr_cpu_ids;
 #ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
     is_screen_on = false;
 #endif
@@ -538,7 +539,7 @@ static void msm_mpdec_early_suspend(struct early_suspend *h) {
 }
 static DECLARE_WORK(msm_mpdec_suspend_work, msm_mpdec_suspend);
 
-static void msm_mpdec_late_resume(struct early_suspend *h) {
+static void msm_mpdec_resume(struct work_struct * msm_mpdec_suspend_work) {
     int cpu = nr_cpu_ids;
 #ifdef CONFIG_MSM_MPDEC_INPUTBOOST_CPUMIN
     is_screen_on = true;
@@ -611,6 +612,7 @@ static struct early_suspend msm_mpdec_early_suspend_handler = {
     .suspend = msm_mpdec_early_suspend,
     .resume = msm_mpdec_late_resume,
 };
+#endif
 
 /**************************** SYSFS START ****************************/
 struct kobject *msm_mpdec_kobject;
@@ -1149,8 +1151,6 @@ static int __init msm_mpdec_init(void) {
     if (state != MSM_MPDEC_DISABLED)
         queue_delayed_work(msm_mpdec_workq, &msm_mpdec_work,
                            msecs_to_jiffies(msm_mpdec_tuners_ins.delay));
-
-    register_early_suspend(&msm_mpdec_early_suspend_handler);
 
     msm_mpdec_kobject = kobject_create_and_add("msm_mpdecision", kernel_kobj);
     if (msm_mpdec_kobject) {
