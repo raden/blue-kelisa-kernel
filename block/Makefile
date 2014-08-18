@@ -16,18 +16,6 @@ obj-$(CONFIG_IOSCHED_NOOP)	+= noop-iosched.o
 obj-$(CONFIG_IOSCHED_DEADLINE)	+= deadline-iosched.o
 obj-$(CONFIG_IOSCHED_ROW)	+= row-iosched.o
 obj-$(CONFIG_IOSCHED_CFQ)	+= cfq-iosched.o
-<<<<<<< HEAD
-<<<<<<< HEAD
 obj-$(CONFIG_IOSCHED_FIOPS)	+= fiops-iosched.o
-obj-$(CONFIG_IOSCHED_BFQ)	+= bfq-iosched.o
-=======
-=======
-obj-$(CONFIG_IOSCHED_BFQ)	+= bfq-iosched.o
->>>>>>> adea706... BFQ-V7
-obj-$(CONFIG_IOSCHED_TEST)	+= test-iosched.o
-obj-$(CONFIG_IOSCHED_FIOPS)     += fiops-iosched.o
-obj-$(CONFIG_IOSCHED_SIO)       += sio-iosched.o
-
->>>>>>> 76e0a80... Revert "BFQ V6r2"
-obj-$(CONFIG_BLOCK_COMPAT)	+= compat_ioctl.o
+bj-$(CONFIG_BLOCK_COMPAT)	+= compat_ioctl.o
 obj-$(CONFIG_BLK_DEV_INTEGRITY)	+= blk-integrity.o
