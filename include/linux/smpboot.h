@@ -14,6 +14,8 @@ struct smpboot_thread_data;
  * @thread_should_run:	Check whether the thread should run or not. Called with
  *			preemption disabled.
  * @thread_fn:		The associated thread function
+ * @create:		Optional setup function, called when the thread gets
+ *			created (Not called from the thread context)
  * @setup:		Optional setup function, called when the thread gets
  *			operational the first time
  * @cleanup:		Optional cleanup function, called when the thread
@@ -33,6 +35,7 @@ struct smp_hotplug_thread {
 	struct list_head		list;
 	int				(*thread_should_run)(unsigned int cpu);
 	void				(*thread_fn)(unsigned int cpu);
+	void				(*create)(unsigned int cpu);
 	void				(*setup)(unsigned int cpu);
 	void				(*cleanup)(unsigned int cpu, bool online);
 	void				(*park)(unsigned int cpu);
