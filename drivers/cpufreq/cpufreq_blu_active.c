@@ -1,5 +1,5 @@
 /*
- * drivers/cpufreq/cpufreq_bluactive.c
+ * drivers/cpufreq/cpufreq_blu_active.c
  *
  * Copyright (C) 2010 Google, Inc.
  * Copyright (C) 2014 engstk
@@ -14,7 +14,7 @@
  * GNU General Public License for more details.
  *
  * Author: Mike Chan (mike@android.com)
- * Author: engstk (eng.stk@sapo.pt) Modified for bluactive
+ * Author: engstk (eng.stk@sapo.pt) Modified for blu_active
  *
  */
 
@@ -138,6 +138,8 @@ static bool io_is_busy;
 static unsigned int up_threshold_any_cpu_load;
 static unsigned int sync_freq;
 static unsigned int up_threshold_any_cpu_freq;
+
+#define DOWN_LOW_LOAD_THRESHOLD 5
 
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 						  cputime64_t *wall)
@@ -471,6 +473,8 @@ static void cpufreq_interactive_timer(unsigned long data)
 	cpu_load = loadadjfreq / pcpu->target_freq;
 	pcpu->prev_load = cpu_load;
 	boosted_freq = max(hispeed_freq, pcpu->policy->min);
+	
+	cpufreq_notify_utilization(pcpu->policy, cpu_load);
 
 	if (cpu_load >= go_hispeed_load) {
 		if (pcpu->target_freq < boosted_freq) {
@@ -480,7 +484,11 @@ static void cpufreq_interactive_timer(unsigned long data)
 			if (new_freq < boosted_freq)
 				new_freq = boosted_freq;
 		}
-	} else {
+	}
+	else if (cpu_load <= DOWN_LOW_LOAD_THRESHOLD) {
+				new_freq = pcpu->policy->cpuinfo.min_freq;
+	}
+	else {
 		new_freq = calc_freq(pcpu, cpu_load);
 		if (new_freq > boosted_freq &&
 				pcpu->target_freq < boosted_freq)
@@ -1187,7 +1195,7 @@ static struct attribute *interactive_attributes[] = {
 
 static struct attribute_group interactive_attr_group = {
 	.attrs = interactive_attributes,
-	.name = "bluactive",
+	.name = "blu_active",
 };
 
 static int cpufreq_interactive_idle_notifier(struct notifier_block *nb,
@@ -1210,7 +1218,7 @@ static struct notifier_block cpufreq_interactive_idle_nb = {
 	.notifier_call = cpufreq_interactive_idle_notifier,
 };
 
-static int cpufreq_governor_bluactive(struct cpufreq_policy *policy,
+static int cpufreq_governor_blu_active(struct cpufreq_policy *policy,
 		unsigned int event)
 {
 	int rc;
@@ -1345,12 +1353,12 @@ static int cpufreq_governor_bluactive(struct cpufreq_policy *policy,
 	return 0;
 }
 
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_BLUACTIVE
+#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
 static
 #endif
-struct cpufreq_governor cpufreq_gov_bluactive = {
-	.name = "bluactive",
-	.governor = cpufreq_governor_bluactive,
+struct cpufreq_governor cpufreq_gov_blu_active = {
+	.name = "blu_active",
+	.governor = cpufreq_governor_blu_active,
 	.max_transition_latency = 10000000,
 	.owner = THIS_MODULE,
 };
@@ -1359,7 +1367,7 @@ static void cpufreq_interactive_nop_timer(unsigned long data)
 {
 }
 
-static int __init cpufreq_bluactive_init(void)
+static int __init cpufreq_blu_active_init(void)
 {
 	unsigned int i;
 	struct cpufreq_interactive_cpuinfo *pcpu;
@@ -1387,7 +1395,7 @@ static int __init cpufreq_bluactive_init(void)
 	mutex_init(&gov_lock);
 	speedchange_task =
 		kthread_create(cpufreq_interactive_speedchange_task, NULL,
-			       "cfbluactive");
+			       "cfblu_active");
 	if (IS_ERR(speedchange_task))
 		return PTR_ERR(speedchange_task);
 
@@ -1397,18 +1405,18 @@ static int __init cpufreq_bluactive_init(void)
 	/* NB: wake up so the thread does not look hung to the freezer */
 	wake_up_process(speedchange_task);
 
-	return cpufreq_register_governor(&cpufreq_gov_bluactive);
+	return cpufreq_register_governor(&cpufreq_gov_blu_active);
 }
 
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_BLUACTIVE
-fs_initcall(cpufreq_bluactive_init);
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_BLU_ACTIVE
+fs_initcall(cpufreq_blu_active_init);
 #else
-module_init(cpufreq_bluactive_init);
+module_init(cpufreq_blu_active_init);
 #endif
 
 static void __exit cpufreq_interactive_exit(void)
 {
-	cpufreq_unregister_governor(&cpufreq_gov_bluactive);
+	cpufreq_unregister_governor(&cpufreq_gov_blu_active);
 	kthread_stop(speedchange_task);
 	put_task_struct(speedchange_task);
 }
@@ -1417,6 +1425,6 @@ module_exit(cpufreq_interactive_exit);
 
 MODULE_AUTHOR("Mike Chan <mike@android.com>");
 MODULE_AUTHOR("engstk <eng.stk@sapo.pt>");
-MODULE_DESCRIPTION("'cpufreq_bluactive' - A cpufreq governor for "
+MODULE_DESCRIPTION("'cpufreq_blu_active' - A cpufreq governor for "
 	"Latency sensitive workloads based on Google, CAF, CM, myfluxi and franciscofranco Interactive");
 MODULE_LICENSE("GPL");
